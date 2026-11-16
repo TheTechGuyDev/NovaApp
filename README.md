@@ -14,7 +14,7 @@ Every push to `main` rebuilds the web app (GitHub Pages) and the Android APK (th
 1. Foundation: theme (dark/light), navigation, CI/CD ✅
 2. Database schema & security rules ✅
 3. Auth & KYC ✅
-4. Naira wallet, transfers, bills
+4. Naira wallet, transfers, bills ✅
 5. Custodial crypto wallets
 6. Non-custodial wallets
 7. Exchange & crypto/Naira conversion
@@ -35,4 +35,9 @@ Migrations live in `supabase/migrations/`. Key design:
 ## Edge Functions
 - `kyc-verify`: BVN (Level 1) and NIN (Level 2) checks through Dojah. Secrets live in Supabase, never in the app.
 
+- `banking`: wallet funding (Paystack checkout, sandbox top-up), account numbers, NOVA-to-NOVA and bank transfers (PIN, KYC daily limits, idempotency, auto-reversal), bills.
+- `paystack-webhook`: signature-verified Paystack events credit wallets.
+
 Sandbox test IDs: BVN `22222222222`, NIN `70123456789`.
+
+Paystack test card: `4084 0840 8408 4081`, any future expiry, CVV `408`, PIN `0000`, OTP `123456`.

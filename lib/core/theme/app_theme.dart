@@ -52,6 +52,13 @@ class AppTheme {
         ),
       ),
       dividerColor: border,
+      tabBarTheme: TabBarThemeData(
+        dividerColor: border,
+        indicatorColor: scheme.primary,
+        labelColor: scheme.primary,
+        unselectedLabelColor: muted,
+        indicatorSize: TabBarIndicatorSize.label,
+      ),
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,

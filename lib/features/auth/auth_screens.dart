@@ -8,6 +8,7 @@ String authErrorText(Object e) {
     final m = e.message.toLowerCase();
     if (m.contains('invalid login')) return 'Incorrect email or password';
     if (m.contains('already registered')) return 'An account with this email already exists';
+    if (m.contains('database error')) return 'This phone number is already linked to an account';
     return e.message;
   }
   return 'Something went wrong. Check your connection and try again.';
@@ -102,6 +103,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_form.currentState!.validate()) return;
     setState(() => _busy = true);
     try {
+      final phoneFree = await sb.rpc('phone_available', params: {'_phone': _phone.text.trim()});
+      if (phoneFree != true) {
+        throw const AuthException('This phone number is already linked to an account');
+      }
       await sb.auth.signUp(
         email: _email.text.trim(),
         password: _password.text,

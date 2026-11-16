@@ -149,11 +149,11 @@ class CoinAvatar extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(
-        symbol.length > 3 ? symbol.substring(0, 3) : symbol,
+        symbol.length > 4 ? symbol.substring(0, 4) : symbol,
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w700,
-          fontSize: size * 0.3,
+          fontSize: size * (symbol.length > 3 ? 0.24 : 0.3),
         ),
       ),
     );

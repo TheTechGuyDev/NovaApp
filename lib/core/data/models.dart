@@ -139,8 +139,12 @@ class TxnItem {
     required this.reference,
     required this.title,
     required this.createdAt,
+    this.counterparty = const {},
+    this.metadata = const {},
   });
 
+  final Map<String, dynamic> counterparty;
+  final Map<String, dynamic> metadata;
   final String id;
   final String type;
   final String status;
@@ -182,6 +186,8 @@ class TxnItem {
         reference: m['reference'],
         title: m['title'] ?? (m['type'] as String).replaceAll('_', ' '),
         createdAt: DateTime.parse(m['created_at']).toLocal(),
+        counterparty: Map<String, dynamic>.from(m['counterparty'] ?? const {}),
+        metadata: Map<String, dynamic>.from(m['metadata'] ?? const {}),
       );
 }
 

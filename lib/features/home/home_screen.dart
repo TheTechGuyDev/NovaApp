@@ -6,6 +6,10 @@ import '../../core/data/nova_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
 import '../kyc/kyc_screen.dart';
+import '../money/add_money_screen.dart';
+import '../money/bills_screen.dart';
+import '../money/money_widgets.dart';
+import '../money/send_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.onOpenExchange});
@@ -18,9 +22,21 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _hidden = false;
 
-  void _soon(String what) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$what arrives in the next phase')),
+  void _quick(String what) {
+    final page = switch (what) {
+      'Send' => const SendScreen(),
+      'Add Money' => const AddMoneyScreen(),
+      'Bills' => const BillsScreen(),
+      _ => null,
+    };
+    if (page == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$what arrives in Phase 8')),
       );
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   totalNgn: store.totalNgn,
                   totalUsd: store.totalUsd,
                   kycLevel: profile.kycLevel,
+                  accountNumber: store.virtualAccount?['account_number'],
+                  onAccountTap: () => _quick('Add Money'),
                   onToggle: () => setState(() => _hidden = !_hidden),
                 ),
                 const SizedBox(height: 12),
@@ -106,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _QuickActions(onTap: _soon),
+                _QuickActions(onTap: _quick),
                 const SizedBox(height: 24),
                 const _SectionHeader(title: 'My Assets'),
                 const SizedBox(height: 10),
@@ -173,7 +191,11 @@ class _BalanceCard extends StatelessWidget {
     required this.totalNgn,
     required this.totalUsd,
     required this.kycLevel,
+    required this.accountNumber,
+    required this.onAccountTap,
   });
+  final String? accountNumber;
+  final VoidCallback onAccountTap;
   final bool hidden;
   final VoidCallback onToggle;
   final double totalNgn;
@@ -256,14 +278,18 @@ class _BalanceCard extends StatelessWidget {
           const SizedBox(height: 18),
           Row(
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Naira Account', style: TextStyle(color: Colors.white60, fontSize: 11)),
-                  SizedBox(height: 2),
-                  Text('Activates in Phase 4',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                ],
+              GestureDetector(
+                onTap: onAccountTap,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Naira Account', style: TextStyle(color: Colors.white60, fontSize: 11)),
+                    const SizedBox(height: 2),
+                    Text(accountNumber ?? 'Get account number  ›',
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
+                  ],
+                ),
               ),
               const Spacer(),
               Column(
@@ -334,7 +360,7 @@ class _QuickActions extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     const items = [
       (Icons.north_east_rounded, 'Send'),
-      (Icons.south_west_rounded, 'Receive'),
+      (Icons.add_rounded, 'Add Money'),
       (Icons.receipt_long_rounded, 'Bills'),
       (Icons.savings_rounded, 'Save'),
     ];
@@ -440,6 +466,7 @@ class _TxnRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: NovaCard(
+        onTap: () => showTxnDetails(context, txn),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [

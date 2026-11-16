@@ -7,6 +7,13 @@ import 'models.dart';
 
 SupabaseClient get sb => Supabase.instance.client;
 
+class NovaException implements Exception {
+  NovaException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 /// Central app state: profile, holdings, rates and history,
 /// kept live with Supabase Realtime.
 class NovaStore extends ChangeNotifier {
@@ -74,7 +81,7 @@ class NovaStore extends ChangeNotifier {
     notifyListeners();
     try {
       await Future.wait([loadCatalogue(), loadProfile()]);
-      await Future.wait([_loadWallets(), loadTransactions()]);
+      await Future.wait([_loadWallets(), loadTransactions(), loadVirtualAccount()]);
       _subscribe();
     } catch (e) {
       error = '$e';
@@ -177,7 +184,48 @@ class NovaStore extends ChangeNotifier {
     }
   }
 
+  // ---------- Banking ----------
+
+  Map<String, dynamic>? virtualAccount;
+
+  /// Calls the `banking` Edge Function. Throws [NovaException] with a readable message.
+  Future<Map<String, dynamic>> banking(String action, [Map<String, dynamic> params = const {}]) async {
+    try {
+      final res = await sb.functions.invoke('banking', body: {'action': action, ...params});
+      return Map<String, dynamic>.from(res.data as Map);
+    } on FunctionException catch (e) {
+      final d = e.details;
+      throw NovaException(d is Map ? (d['error']?.toString() ?? 'Request failed') : 'Request failed');
+    } catch (e) {
+      if (e is NovaException) rethrow;
+      throw NovaException('Network error. Check your connection.');
+    }
+  }
+
+  Future<void> loadVirtualAccount() async {
+    final r = await sb.from('virtual_accounts').select().maybeSingle();
+    virtualAccount = r;
+    notifyListeners();
+  }
+
+  Future<void> createVirtualAccount() async {
+    virtualAccount = await banking('virtual_account');
+    notifyListeners();
+  }
+
+  Future<Map<String, String>?> lookupUser(String username) async {
+    final r = await sb.rpc('lookup_nova_user', params: {'_username': username}) as List;
+    if (r.isEmpty) return null;
+    return {'username': r.first['username'], 'full_name': r.first['full_name'] ?? ''};
+  }
+
+  Future<void> refreshMoney() async {
+    await Future.wait([_loadWallets(), loadTransactions()]);
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
+    virtualAccount = null;
     await _channel?.unsubscribe();
     _channel = null;
     profile = null;
