@@ -19,6 +19,11 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Release lint crashes on some plugin sources (lint bug); it is not needed for preview builds.
+subprojects {
+    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
