@@ -141,7 +141,12 @@ class TxnItem {
     required this.createdAt,
     this.counterparty = const {},
     this.metadata = const {},
+    this.txHash,
+    this.networkId,
   });
+
+  final String? txHash;
+  final String? networkId;
 
   final Map<String, dynamic> counterparty;
   final Map<String, dynamic> metadata;
@@ -188,6 +193,8 @@ class TxnItem {
         createdAt: DateTime.parse(m['created_at']).toLocal(),
         counterparty: Map<String, dynamic>.from(m['counterparty'] ?? const {}),
         metadata: Map<String, dynamic>.from(m['metadata'] ?? const {}),
+        txHash: m['tx_hash'],
+        networkId: m['network_id'],
       );
 }
 

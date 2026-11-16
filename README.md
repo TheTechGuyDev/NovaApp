@@ -15,7 +15,7 @@ Every push to `main` rebuilds the web app (GitHub Pages) and the Android APK (th
 2. Database schema & security rules ✅
 3. Auth & KYC ✅
 4. Naira wallet, transfers, bills ✅
-5. Custodial crypto wallets
+5. Custodial crypto wallets ✅
 6. Non-custodial wallets
 7. Exchange & crypto/Naira conversion
 8. Savings, cards, spending insights
@@ -37,6 +37,9 @@ Migrations live in `supabase/migrations/`. Key design:
 
 - `banking`: wallet funding (Paystack checkout, sandbox top-up), account numbers, NOVA-to-NOVA and bank transfers (PIN, KYC daily limits, idempotency, auto-reversal), bills.
 - `paystack-webhook`: signature-verified Paystack events credit wallets.
+
+- `crypto`: testnet custody via Tatum. Per-user deposit addresses (BTC testnet, ETH Sepolia, BSC testnet, Solana devnet), deposit sync with confirmations, free NOVA-to-NOVA crypto sends, on-chain withdrawals from per-chain hot wallets, sandbox faucet.
+  Master seeds are AES-GCM encrypted in the Edge Function before storage (`custody_master`, service role only).
 
 Sandbox test IDs: BVN `22222222222`, NIN `70123456789`.
 

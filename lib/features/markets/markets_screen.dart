@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/data/models.dart';
 import '../../core/data/nova_store.dart';
 import '../../core/widgets/nova_widgets.dart';
+import '../crypto/asset_screen.dart';
 
 class MarketsScreen extends StatelessWidget {
   const MarketsScreen({super.key});
@@ -35,6 +36,8 @@ class MarketsScreen extends StatelessWidget {
             (a) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: NovaCard(
+                onTap: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => AssetScreen(symbol: a.symbol))),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 child: Row(
                   children: [
@@ -54,8 +57,10 @@ class MarketsScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(formatMoney(a.priceUsd, symbol: '\$'),
+                        Text(formatMoney(a.priceNgn, symbol: '₦'),
                             style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(formatMoney(a.priceUsd, symbol: '\$'),
+                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
                         const SizedBox(height: 4),
                         ChangeChip(a.change24h),
                       ],

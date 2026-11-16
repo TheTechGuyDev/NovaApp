@@ -5,6 +5,7 @@ import '../../core/data/models.dart';
 import '../../core/data/nova_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
+import '../crypto/asset_screen.dart';
 import '../kyc/kyc_screen.dart';
 import '../money/add_money_screen.dart';
 import '../money/bills_screen.dart';
@@ -128,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 const _SectionHeader(title: 'My Assets'),
                 const SizedBox(height: 10),
-                ...holdings.map((h) => _AssetRow(holding: h, hidden: _hidden)),
+                ...holdings.map((h) => _AssetRow(holding: h, hidden: _hidden, onOpenExchange: widget.onOpenExchange)),
                 const SizedBox(height: 20),
                 const _SectionHeader(title: 'Transactions'),
                 const SizedBox(height: 10),
@@ -409,9 +410,10 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _AssetRow extends StatelessWidget {
-  const _AssetRow({required this.holding, required this.hidden});
+  const _AssetRow({required this.holding, required this.hidden, required this.onOpenExchange});
   final Holding holding;
   final bool hidden;
+  final VoidCallback onOpenExchange;
 
   @override
   Widget build(BuildContext context) {
@@ -420,6 +422,9 @@ class _AssetRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: NovaCard(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => AssetScreen(symbol: h.symbol, onOpenExchange: onOpenExchange),
+        )),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [

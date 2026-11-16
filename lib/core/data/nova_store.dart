@@ -189,9 +189,33 @@ class NovaStore extends ChangeNotifier {
   Map<String, dynamic>? virtualAccount;
 
   /// Calls the `banking` Edge Function. Throws [NovaException] with a readable message.
-  Future<Map<String, dynamic>> banking(String action, [Map<String, dynamic> params = const {}]) async {
+  Future<Map<String, dynamic>> banking(String action, [Map<String, dynamic> params = const {}]) =>
+      _invoke('banking', action, params);
+
+  Future<Map<String, dynamic>> crypto(String action, [Map<String, dynamic> params = const {}]) =>
+      _invoke('crypto', action, params);
+
+  List<Map<String, dynamic>> depositAddresses = [];
+
+  Future<void> loadDepositAddresses() async {
+    final r = await crypto('addresses');
+    depositAddresses = List<Map<String, dynamic>>.from(r['addresses'] as List);
+    notifyListeners();
+  }
+
+  /// Checks the blockchain for new deposits. Returns credited descriptions.
+  Future<List<String>> syncDeposits() async {
+    final r = await crypto('sync');
+    await refreshMoney();
+    return List<String>.from(r['credited'] as List? ?? const []);
+  }
+
+  List<TxnItem> transactionsFor(String asset) =>
+      transactions.where((t) => t.asset == asset).toList();
+
+  Future<Map<String, dynamic>> _invoke(String fn, String action, Map<String, dynamic> params) async {
     try {
-      final res = await sb.functions.invoke('banking', body: {'action': action, ...params});
+      final res = await sb.functions.invoke(fn, body: {'action': action, ...params});
       return Map<String, dynamic>.from(res.data as Map);
     } on FunctionException catch (e) {
       final d = e.details;
@@ -226,6 +250,7 @@ class NovaStore extends ChangeNotifier {
 
   Future<void> signOut() async {
     virtualAccount = null;
+    depositAddresses = [];
     await _channel?.unsubscribe();
     _channel = null;
     profile = null;
