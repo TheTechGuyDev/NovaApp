@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../core/data/mock_data.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/data/models.dart';
+import '../../core/data/nova_store.dart';
 import '../../core/widgets/nova_widgets.dart';
 
 class MarketsScreen extends StatelessWidget {
@@ -9,7 +12,7 @@ class MarketsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final coins = MockData.assets.where((a) => !a.isFiat).toList();
+    final coins = context.watch<NovaStore>().holdings.where((a) => !a.isFiat).toList();
 
     return SafeArea(
       bottom: false,

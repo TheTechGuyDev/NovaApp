@@ -1,31 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'core/config.dart';
+import 'core/data/nova_store.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
-import 'features/onboarding/onboarding_screen.dart';
-import 'features/shell/main_shell.dart';
+import 'features/auth/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
+  );
   final theme = ThemeController();
   await theme.load();
-  final prefs = await SharedPreferences.getInstance();
-  final onboarded = prefs.getBool('nova_onboarded') ?? false;
 
   runApp(
-    ChangeNotifierProvider.value(
-      value: theme,
-      child: NovaApp(onboarded: onboarded),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: theme),
+        ChangeNotifierProvider(create: (_) => NovaStore()),
+      ],
+      child: const NovaApp(),
     ),
   );
 }
 
 class NovaApp extends StatelessWidget {
-  const NovaApp({super.key, required this.onboarded});
-  final bool onboarded;
+  const NovaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +48,7 @@ class NovaApp extends StatelessWidget {
           child: child!,
         );
       },
-      home: onboarded ? const MainShell() : const OnboardingScreen(),
+      home: const AuthGate(),
     );
   }
 }

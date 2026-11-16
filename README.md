@@ -13,7 +13,7 @@ Every push to `main` rebuilds the web app (GitHub Pages) and the Android APK (th
 ## Build phases
 1. Foundation: theme (dark/light), navigation, CI/CD ✅
 2. Database schema & security rules ✅
-3. Auth & KYC
+3. Auth & KYC ✅
 4. Naira wallet, transfers, bills
 5. Custodial crypto wallets
 6. Non-custodial wallets
@@ -31,3 +31,8 @@ Migrations live in `supabase/migrations/`. Key design:
 - **Asset + network allowlist** (`assets`, `networks`): e.g. USDT_TRC20 and USDT_ERC20 are separate routes.
 - **Non-custodial wallets** store public addresses only; seed phrases never leave the device.
 - **RLS** on every table; staff access via `user_roles`.
+
+## Edge Functions
+- `kyc-verify`: BVN (Level 1) and NIN (Level 2) checks through Dojah. Secrets live in Supabase, never in the app.
+
+Sandbox test IDs: BVN `22222222222`, NIN `70123456789`.

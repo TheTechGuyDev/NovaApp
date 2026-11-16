@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../core/data/mock_data.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/data/models.dart';
+import '../../core/data/nova_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
 
@@ -20,9 +23,11 @@ class _ExchangeScreenState extends State<ExchangeScreen> {
 
   double get _amountIn => double.tryParse(_amount.text) ?? 0;
 
-  double _priceUsd(String s) => MockData.bySymbol(s).priceUsd;
+  NovaStore get _store => context.read<NovaStore>();
 
-  double get _rate => _priceUsd(_from) / _priceUsd(_to);
+  double _priceUsd(String s) => _store.holding(s)?.priceUsd ?? 0;
+
+  double get _rate => _priceUsd(_to) == 0 ? 0 : _priceUsd(_from) / _priceUsd(_to);
 
   double get _received => _amountIn * _rate * (1 - _feePct);
 
@@ -41,7 +46,7 @@ class _ExchangeScreenState extends State<ExchangeScreen> {
       showDragHandle: true,
       builder: (_) => ListView(
         shrinkWrap: true,
-        children: MockData.assets
+        children: _store.holdings
             .map((a) => ListTile(
                   leading: CoinAvatar(symbol: a.symbol, color: a.color),
                   title: Text(a.name),
@@ -66,8 +71,10 @@ class _ExchangeScreenState extends State<ExchangeScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final from = MockData.bySymbol(_from);
-    final to = MockData.bySymbol(_to);
+    final store = context.watch<NovaStore>();
+    final from = store.holding(_from);
+    final to = store.holding(_to);
+    if (from == null || to == null) return const Center(child: CircularProgressIndicator());
     final feeUsd = _amountIn * from.priceUsd * _feePct;
 
     return SafeArea(
@@ -188,7 +195,7 @@ class _SwapPanel extends StatelessWidget {
     required this.child,
   });
   final String label;
-  final Asset asset;
+  final Holding asset;
   final VoidCallback onPick;
   final String available;
   final Widget child;

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/data/nova_store.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
@@ -10,6 +13,7 @@ class CardsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final dark = isDarkOf(context);
+    final name = (context.watch<NovaStore>().profile?.fullName ?? '').toUpperCase();
 
     return SafeArea(
       bottom: false,
@@ -30,10 +34,10 @@ class CardsScreen extends StatelessWidget {
                 gradient: dark ? AppColors.balanceCardDark : AppColors.balanceCardLight,
                 border: Border.all(color: AppColors.neon.withValues(alpha: 0.3)),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
                       Icon(Icons.contactless_rounded, color: Colors.white70),
                       Spacer(),
@@ -45,17 +49,16 @@ class CardsScreen extends StatelessWidget {
                               fontSize: 18)),
                     ],
                   ),
-                  Spacer(),
-                  Text('5399  ••••  ••••  9000',
+                  const Spacer(),
+                  const Text('5399  ••••  ••••  9000',
                       style: TextStyle(
                           color: Colors.white, fontSize: 20, letterSpacing: 1.5)),
-                  SizedBox(height: 14),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
-                      Text('TEMIDAYO A.',
-                          style: TextStyle(color: Colors.white70, fontSize: 12)),
-                      Spacer(),
-                      Text('05/29', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text(name, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      const Spacer(),
+                      const Text('05/29', style: TextStyle(color: Colors.white70, fontSize: 12)),
                     ],
                   ),
                 ],

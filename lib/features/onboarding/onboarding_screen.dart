@@ -1,23 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
-import '../shell/main_shell.dart';
+import '../auth/auth_screens.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
 
-  Future<void> _start(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('nova_onboarded', true);
-    if (!context.mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainShell()),
-    );
-  }
+  void _open(BuildContext context, Widget page) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +80,7 @@ class OnboardingScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 28),
                   FilledButton(
-                    onPressed: () => _start(context),
+                    onPressed: () => _open(context, const SignUpScreen()),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -95,6 +88,13 @@ class OnboardingScreen extends StatelessWidget {
                         SizedBox(width: 8),
                         Icon(Icons.arrow_forward_rounded, size: 18),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => _open(context, const SignInScreen()),
+                      child: const Text('I already have an account'),
                     ),
                   ),
                 ],

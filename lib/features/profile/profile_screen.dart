@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/data/nova_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/nova_widgets.dart';
+import '../kyc/kyc_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -12,6 +14,9 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final theme = context.watch<ThemeController>();
+    final store = context.watch<NovaStore>();
+    final profile = store.profile!;
+    const kycNames = ['Starter', 'Basic', 'Verified', 'Premium'];
 
     return SafeArea(
       bottom: false,
@@ -29,17 +34,19 @@ class ProfileScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 28,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                  child: const Text('T',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  child: Text(profile.initials,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Temidayo',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                      Text('KYC Level 2 · Verified',
+                      Text(profile.fullName ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                      Text('@${profile.username}',
+                          style: TextStyle(color: scheme.primary, fontSize: 13)),
+                      Text('KYC Level ${profile.kycLevel} · ${kycNames[profile.kycLevel]}',
                           style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                     ],
                   ),
@@ -80,18 +87,22 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          ...const [
-            (Icons.verified_user_outlined, 'Security & PIN'),
-            (Icons.badge_outlined, 'Verification (KYC)'),
-            (Icons.account_balance_outlined, 'Linked Banks'),
-            (Icons.notifications_none_rounded, 'Notifications'),
-            (Icons.help_outline_rounded, 'Help & Support'),
+          ...[
+            (Icons.badge_outlined, 'Verification (KYC)', () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const KycScreen()))),
+            (Icons.verified_user_outlined, 'Security & PIN', null),
+            (Icons.account_balance_outlined, 'Linked Banks', null),
+            (Icons.notifications_none_rounded, 'Notifications', null),
+            (Icons.help_outline_rounded, 'Help & Support', null),
+            (Icons.logout_rounded, 'Sign Out', store.signOut),
           ].map(
             (e) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: NovaCard(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                onTap: () {},
+                onTap: e.$3 ?? () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Coming in a later phase')),
+                    ),
                 child: Row(
                   children: [
                     Icon(e.$1, color: scheme.primary),

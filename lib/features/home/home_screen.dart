@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../core/data/mock_data.dart';
+import '../../core/data/models.dart';
+import '../../core/data/nova_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
+import '../kyc/kyc_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.onOpenExchange});
@@ -15,11 +18,18 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _hidden = false;
 
+  void _soon(String what) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$what arrives in the next phase')),
+      );
+
   @override
   Widget build(BuildContext context) {
+    final store = context.watch<NovaStore>();
+    final profile = store.profile!;
     final dark = isDarkOf(context);
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
+    final holdings = store.holdings;
 
     return Stack(
       children: [
@@ -36,64 +46,90 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         SafeArea(
           bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                    child: const Text('T',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
-                  ),
-                  const Spacer(),
-                  const RoundIconButton(icon: Icons.notifications_none_rounded),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text('Hello, Temidayo',
-                  style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
-              Text('Good to see you back!',
-                  style: text.titleMedium?.copyWith(color: scheme.onSurfaceVariant)),
-              const SizedBox(height: 20),
-              _BalanceCard(
-                hidden: _hidden,
-                onToggle: () => setState(() => _hidden = !_hidden),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionTile(
-                      title: 'Buy',
-                      subtitle: 'Use Naira or wallet',
-                      icon: Icons.add_rounded,
-                      onTap: widget.onOpenExchange,
+          child: RefreshIndicator(
+            onRefresh: store.loadAll,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                      child: Text(profile.initials,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ActionTile(
-                      title: 'Sell',
-                      subtitle: 'Convert crypto to cash',
-                      icon: Icons.currency_exchange_rounded,
-                      onTap: widget.onOpenExchange,
-                    ),
-                  ),
+                    const SizedBox(width: 10),
+                    Text('@${profile.username}',
+                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
+                    const Spacer(),
+                    const RoundIconButton(icon: Icons.notifications_none_rounded),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text('Hello, ${profile.firstName}',
+                    style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
+                Text('Good to see you back!',
+                    style: text.titleMedium?.copyWith(color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 20),
+                if (profile.kycLevel < 2) ...[
+                  _KycBanner(level: profile.kycLevel),
+                  const SizedBox(height: 12),
                 ],
-              ),
-              const SizedBox(height: 12),
-              const _QuickActions(),
-              const SizedBox(height: 24),
-              _SectionHeader(title: 'My Assets', action: 'See all'),
-              const SizedBox(height: 10),
-              ...MockData.assets.take(4).map((a) => _AssetRow(asset: a, hidden: _hidden)),
-              const SizedBox(height: 20),
-              _SectionHeader(title: 'Transactions', action: 'See all'),
-              const SizedBox(height: 10),
-              ...MockData.transactions.map((t) => _TxnRow(txn: t)),
-            ],
+                _BalanceCard(
+                  hidden: _hidden,
+                  totalNgn: store.totalNgn,
+                  totalUsd: store.totalUsd,
+                  kycLevel: profile.kycLevel,
+                  onToggle: () => setState(() => _hidden = !_hidden),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ActionTile(
+                        title: 'Buy',
+                        subtitle: 'Use Naira or wallet',
+                        icon: Icons.add_rounded,
+                        onTap: widget.onOpenExchange,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ActionTile(
+                        title: 'Sell',
+                        subtitle: 'Convert crypto to cash',
+                        icon: Icons.currency_exchange_rounded,
+                        onTap: widget.onOpenExchange,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _QuickActions(onTap: _soon),
+                const SizedBox(height: 24),
+                const _SectionHeader(title: 'My Assets'),
+                const SizedBox(height: 10),
+                ...holdings.map((h) => _AssetRow(holding: h, hidden: _hidden)),
+                const SizedBox(height: 20),
+                const _SectionHeader(title: 'Transactions'),
+                const SizedBox(height: 10),
+                if (store.transactions.isEmpty)
+                  NovaCard(
+                    padding: const EdgeInsets.symmetric(vertical: 28),
+                    child: Column(
+                      children: [
+                        Icon(Icons.receipt_long_outlined, color: scheme.onSurfaceVariant, size: 32),
+                        const SizedBox(height: 8),
+                        Text('No transactions yet',
+                            style: TextStyle(color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  )
+                else
+                  ...store.transactions.take(10).map((t) => _TxnRow(txn: t)),
+              ],
+            ),
           ),
         ),
       ],
@@ -101,15 +137,52 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+class _KycBanner extends StatelessWidget {
+  const _KycBanner({required this.level});
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return NovaCard(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const KycScreen())),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          const Icon(Icons.shield_outlined, color: AppColors.warning),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              level == 0
+                  ? 'Verify your BVN to unlock transfers and crypto'
+                  : 'Verify your NIN to raise your limit to ₦5M/day',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+        ],
+      ),
+    );
+  }
+}
+
 class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.hidden, required this.onToggle});
+  const _BalanceCard({
+    required this.hidden,
+    required this.onToggle,
+    required this.totalNgn,
+    required this.totalUsd,
+    required this.kycLevel,
+  });
   final bool hidden;
   final VoidCallback onToggle;
+  final double totalNgn;
+  final double totalUsd;
+  final int kycLevel;
 
   @override
   Widget build(BuildContext context) {
     final dark = isDarkOf(context);
-    final total = MockData.totalNgn;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -129,7 +202,7 @@ class _BalanceCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white24),
                 ),
-                child: const Text('Main Wallet',
+                child: const Text('Total Portfolio',
                     style: TextStyle(color: Colors.white, fontSize: 12)),
               ),
               const Spacer(),
@@ -142,8 +215,7 @@ class _BalanceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          const Text('Total Balance',
-              style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const Text('Total Balance', style: TextStyle(color: Colors.white70, fontSize: 13)),
           const SizedBox(height: 4),
           Row(
             children: [
@@ -152,7 +224,7 @@ class _BalanceCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    hidden ? '₦ ••••••' : formatMoney(total, symbol: '₦'),
+                    hidden ? '₦ ••••••' : formatMoney(totalNgn, symbol: '₦'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -178,30 +250,29 @@ class _BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            hidden ? '≈ \$ ••••' : '≈ ${formatMoney(MockData.totalUsd, symbol: '\$')}',
+            hidden ? '≈ \$ ••••' : '≈ ${formatMoney(totalUsd, symbol: '\$')}',
             style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 18),
-          const Row(
+          Row(
             children: [
-              Column(
+              const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Account Number',
-                      style: TextStyle(color: Colors.white60, fontSize: 11)),
+                  Text('Naira Account', style: TextStyle(color: Colors.white60, fontSize: 11)),
                   SizedBox(height: 2),
-                  Text('**** 9000',
+                  Text('Activates in Phase 4',
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                 ],
               ),
-              Spacer(),
+              const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Tier', style: TextStyle(color: Colors.white60, fontSize: 11)),
-                  SizedBox(height: 2),
-                  Text('Level 2',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                  const Text('KYC Tier', style: TextStyle(color: Colors.white60, fontSize: 11)),
+                  const SizedBox(height: 2),
+                  Text('Level $kycLevel',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                 ],
               ),
             ],
@@ -247,8 +318,7 @@ class _ActionTile extends StatelessWidget {
           const SizedBox(height: 18),
           Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
           const SizedBox(height: 2),
-          Text(subtitle,
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+          Text(subtitle, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
         ],
       ),
     );
@@ -256,7 +326,8 @@ class _ActionTile extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
-  const _QuickActions();
+  const _QuickActions({required this.onTap});
+  final ValueChanged<String> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -272,21 +343,28 @@ class _QuickActions extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: items
-            .map((e) => Column(
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: scheme.primary.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(e.$1, color: scheme.primary, size: 22),
+            .map((e) => InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => onTap(e.$2),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(e.$1, color: scheme.primary, size: 22),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(e.$2,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(e.$2,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                  ],
+                  ),
                 ))
             .toList(),
       ),
@@ -295,48 +373,38 @@ class _QuickActions extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.action});
+  const _SectionHeader({required this.title});
   final String title;
-  final String action;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-        const Spacer(),
-        Text(action, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
-      ],
-    );
+    return Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16));
   }
 }
 
 class _AssetRow extends StatelessWidget {
-  const _AssetRow({required this.asset, required this.hidden});
-  final Asset asset;
+  const _AssetRow({required this.holding, required this.hidden});
+  final Holding holding;
   final bool hidden;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final bal = asset.isFiat
-        ? formatMoney(asset.balance, symbol: '₦')
-        : '${asset.balance} ${asset.symbol}';
+    final h = holding;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: NovaCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            CoinAvatar(symbol: asset.symbol, color: asset.color),
+            CoinAvatar(symbol: h.symbol, color: h.color),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(asset.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(hidden ? '••••' : bal,
+                  Text(h.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(hidden ? '••••' : h.balanceLabel,
                       style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                 ],
               ),
@@ -345,12 +413,12 @@ class _AssetRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  hidden ? '••••' : formatMoney(asset.valueUsd, symbol: '\$'),
+                  hidden ? '••••' : formatMoney(h.valueNgn, symbol: '₦'),
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                if (!asset.isFiat) ...[
+                if (!h.isFiat) ...[
                   const SizedBox(height: 4),
-                  ChangeChip(asset.change24h),
+                  ChangeChip(h.change24h),
                 ],
               ],
             ),
@@ -363,7 +431,7 @@ class _AssetRow extends StatelessWidget {
 
 class _TxnRow extends StatelessWidget {
   const _TxnRow({required this.txn});
-  final Txn txn;
+  final TxnItem txn;
 
   @override
   Widget build(BuildContext context) {
@@ -393,13 +461,12 @@ class _TxnRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w500)),
-                  Text(txn.subtitle,
+                  Text('${friendlyDate(txn.createdAt)} · ${txn.status}',
                       style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                 ],
               ),
             ),
-            Text(txn.amount,
-                style: TextStyle(fontWeight: FontWeight.w600, color: c)),
+            Text(txn.amountLabel, style: TextStyle(fontWeight: FontWeight.w600, color: c)),
           ],
         ),
       ),
