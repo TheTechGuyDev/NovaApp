@@ -8,7 +8,8 @@ import '../../core/widgets/nova_widgets.dart';
 import '../kyc/kyc_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.showBack = false});
+  final bool showBack;
 
   @override
   Widget build(BuildContext context) {
@@ -23,9 +24,19 @@ class ProfileScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
         children: [
-          const Center(
-            child: Text('Account',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          Row(
+            children: [
+              if (showBack)
+                RoundIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.pop(context))
+              else
+                const SizedBox(width: 44),
+              const Expanded(
+                child: Center(
+                  child: Text('Account', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 44),
+            ],
           ),
           const SizedBox(height: 20),
           NovaCard(
@@ -94,7 +105,10 @@ class ProfileScreen extends StatelessWidget {
             (Icons.account_balance_outlined, 'Linked Banks', null),
             (Icons.notifications_none_rounded, 'Notifications', null),
             (Icons.help_outline_rounded, 'Help & Support', null),
-            (Icons.logout_rounded, 'Sign Out', store.signOut),
+            (Icons.logout_rounded, 'Sign Out', () async {
+              Navigator.of(context).popUntil((r) => r.isFirst);
+              await store.signOut();
+            }),
           ].map(
             (e) => Padding(
               padding: const EdgeInsets.only(bottom: 8),

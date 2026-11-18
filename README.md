@@ -16,7 +16,7 @@ Every push to `main` rebuilds the web app (GitHub Pages) and the Android APK (th
 3. Auth & KYC ✅
 4. Naira wallet, transfers, bills ✅
 5. Custodial crypto wallets ✅
-6. Non-custodial wallets
+6. Non-custodial wallets ✅
 7. Exchange & crypto/Naira conversion
 8. Savings, cards, spending insights
 9. Admin dashboard
@@ -40,6 +40,14 @@ Migrations live in `supabase/migrations/`. Key design:
 
 - `crypto`: testnet custody via Tatum. Per-user deposit addresses (BTC testnet, ETH Sepolia, BSC testnet, Solana devnet), deposit sync with confirmations, free NOVA-to-NOVA crypto sends, on-chain withdrawals from per-chain hot wallets, sandbox faucet.
   Master seeds are AES-GCM encrypted in the Edge Function before storage (`custody_master`, service role only).
+
+- `wallet-rpc`: JSON-RPC proxy for self-custody wallets (balances + broadcasting already-signed transactions). Keys never leave the device.
+
+## Self-custody (Web3 tab)
+- Create (12-word phrase + 3-word verification) or import a BIP39 phrase. MetaMask/Phantom-compatible derivation.
+- Phrase stored with `flutter_secure_storage` on the device only; reveal/sign/remove gated by the NOVA PIN (`check_my_pin`, locks after 5 failures).
+- Networks: Ethereum Sepolia, BNB Testnet, Solana Devnet (send + receive), Bitcoin Testnet (receive).
+- Connect MetaMask / Trust / Phantom etc. through Reown (WalletConnect) as watch-only wallets.
 
 Sandbox test IDs: BVN `22222222222`, NIN `70123456789`.
 

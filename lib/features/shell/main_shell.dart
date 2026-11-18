@@ -5,7 +5,7 @@ import '../cards/cards_screen.dart';
 import '../exchange/exchange_screen.dart';
 import '../home/home_screen.dart';
 import '../markets/markets_screen.dart';
-import '../profile/profile_screen.dart';
+import '../selfcustody/web3_home_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -34,7 +34,7 @@ class _MainShellState extends State<MainShell> {
       const MarketsScreen(),
       const ExchangeScreen(),
       const CardsScreen(),
-      const ProfileScreen(),
+      const Web3HomeScreen(),
     ];
 
     return Scaffold(

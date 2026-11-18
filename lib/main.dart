@@ -8,6 +8,7 @@ import 'core/data/nova_store.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/auth_gate.dart';
+import 'features/selfcustody/self_custody.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider.value(value: theme),
         ChangeNotifierProvider(create: (_) => NovaStore()),
+        ChangeNotifierProvider(create: (_) => SelfCustodyStore()),
       ],
       child: const NovaApp(),
     ),

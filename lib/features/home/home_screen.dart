@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
 import '../crypto/asset_screen.dart';
 import '../kyc/kyc_screen.dart';
+import '../profile/profile_screen.dart';
 import '../money/add_money_screen.dart';
 import '../money/bills_screen.dart';
 import '../money/money_widgets.dart';
@@ -70,11 +71,16 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                      child: Text(profile.initials,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const Scaffold(body: ProfileScreen(showBack: true)),
+                      )),
+                      child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                        child: Text(profile.initials,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Text('@${profile.username}',

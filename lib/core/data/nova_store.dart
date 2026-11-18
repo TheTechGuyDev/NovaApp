@@ -243,6 +243,15 @@ class NovaStore extends ChangeNotifier {
     return {'username': r.first['username'], 'full_name': r.first['full_name'] ?? ''};
   }
 
+  /// Verifies the transaction PIN (for on-device actions like signing).
+  Future<bool> checkPin(String pin) async {
+    try {
+      return await sb.rpc('check_my_pin', params: {'_pin': pin}) == true;
+    } on PostgrestException catch (e) {
+      throw NovaException(e.message);
+    }
+  }
+
   Future<void> refreshMoney() async {
     await Future.wait([_loadWallets(), loadTransactions()]);
     notifyListeners();

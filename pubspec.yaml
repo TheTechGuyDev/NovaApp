@@ -40,6 +40,13 @@ dependencies:
   supabase_flutter: ^2.18.3
   url_launcher: ^6.3.3
   qr_flutter: ^4.1.0
+  blockchain_utils: ^8.0.1
+  web3dart: ^3.0.1
+  flutter_secure_storage: ^10.0.0
+  http: ^1.6.0
+  reown_appkit: ^1.9.0
+  on_chain: ^9.0.2
+  wallet: ^0.0.18
 dev_dependencies:
   flutter_test:
     sdk: flutter

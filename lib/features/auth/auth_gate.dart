@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/data/nova_store.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../selfcustody/self_custody.dart';
 import '../shell/main_shell.dart';
 import 'setup_account_screen.dart';
 
@@ -26,7 +27,10 @@ class _AuthGateState extends State<AuthGate> {
   void initState() {
     super.initState();
     _sub = sb.auth.onAuthStateChange.listen((s) {
-      if (s.event == AuthChangeEvent.signedOut) _loadedFor = null;
+      if (s.event == AuthChangeEvent.signedOut) {
+        _loadedFor = null;
+        context.read<SelfCustodyStore>().clear();
+      }
       _maybeLoad();
       if (mounted) setState(() {});
     });
