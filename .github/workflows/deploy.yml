@@ -51,6 +51,12 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - name: Patch wallet SDK packaging bug
+        # coinbase_wallet_sdk (pulled in by Reown) references a proguard file it doesn't ship.
+        run: |
+          for d in $(find "${PUB_CACHE:-$HOME/.pub-cache}" -maxdepth 4 -type d -path "*coinbase_wallet_sdk-*/android"); do
+            touch "$d/consumer-rules.pro"
+          done
       - name: Build APK
         run: flutter build apk --release
       - name: Publish APK to the "preview" release
