@@ -29,11 +29,24 @@ android {
         versionName = flutter.versionName
     }
 
+    // One fixed key for every preview build, so each new APK installs as an
+    // update over the old one (keeping the user signed in).
+    // Preview/testnet only: use a private keystore stored as a CI secret before going live.
+    signingConfigs {
+        create("preview") {
+            storeFile = file("nova-preview.jks")
+            storePassword = "novapreview"
+            keyAlias = "nova"
+            keyPassword = "novapreview"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("preview")
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("preview")
         }
     }
 }
