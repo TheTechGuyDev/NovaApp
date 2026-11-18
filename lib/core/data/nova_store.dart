@@ -82,6 +82,7 @@ class NovaStore extends ChangeNotifier {
     try {
       await Future.wait([loadCatalogue(), loadProfile()]);
       await Future.wait([_loadWallets(), loadTransactions(), loadVirtualAccount()]);
+      Future.wait([loadSavings(), loadCards()]).catchError((_) => <void>[]);
       _subscribe();
     } catch (e) {
       error = '$e';
@@ -252,6 +253,42 @@ class NovaStore extends ChangeNotifier {
     }
   }
 
+  // ---------- Savings, cards, insights ----------
+
+  List<SavingsPlan> savings = [];
+  List<CardModel> cards = [];
+
+  double get totalSaved => savings.where((p) => p.active).fold(0, (s, p) => s + p.balance);
+  double get totalInterest => savings.fold(0, (s, p) => s + p.interestEarned);
+
+  /// Calls a Postgres RPC and turns database errors into readable messages.
+  Future<dynamic> rpc(String fn, [Map<String, dynamic> params = const {}]) async {
+    try {
+      return await sb.rpc(fn, params: params);
+    } on PostgrestException catch (e) {
+      throw NovaException(e.message);
+    } catch (e) {
+      throw NovaException('Network error. Check your connection.');
+    }
+  }
+
+  Future<void> loadSavings() async {
+    final r = await rpc('my_savings') as List;
+    savings = r.map((m) => SavingsPlan(Map<String, dynamic>.from(m))).toList();
+    notifyListeners();
+  }
+
+  Future<void> loadCards() async {
+    final r = await sb
+        .from('cards')
+        .select('id, label, brand, currency, last4, expiry_month, expiry_year, balance, status, '
+            'daily_limit, online_enabled, international_enabled, color, created_at')
+        .neq('status', 'terminated')
+        .order('created_at');
+    cards = (r as List).map((m) => CardModel(Map<String, dynamic>.from(m))).toList();
+    notifyListeners();
+  }
+
   Future<void> refreshMoney() async {
     await Future.wait([_loadWallets(), loadTransactions()]);
     notifyListeners();
@@ -260,6 +297,8 @@ class NovaStore extends ChangeNotifier {
   Future<void> signOut() async {
     virtualAccount = null;
     depositAddresses = [];
+    savings = [];
+    cards = [];
     await _channel?.unsubscribe();
     _channel = null;
     profile = null;

@@ -161,7 +161,7 @@ class TxnItem {
   final DateTime createdAt;
 
   bool get incoming =>
-      const ['deposit', 'transfer_in', 'reversal'].contains(type) ||
+      const ['deposit', 'transfer_in', 'reversal', 'interest', 'savings_withdrawal'].contains(type) ||
       (type == 'conversion' && amount > 0) ||
       (type == 'trade' && amount > 0);
 
@@ -170,11 +170,17 @@ class TxnItem {
         'withdrawal' || 'transfer_out' => Icons.north_east_rounded,
         'bill_payment' => Icons.receipt_long_rounded,
         'conversion' || 'trade' => Icons.swap_horiz_rounded,
+        'savings_deposit' || 'savings_withdrawal' => Icons.savings_rounded,
+        'interest' => Icons.trending_up_rounded,
+        'card_payment' || 'card_funding' => Icons.credit_card_rounded,
         _ => Icons.sync_alt_rounded,
       };
 
   String get amountLabel {
     final sign = incoming ? '+' : '-';
+    if (type == 'card_payment' && metadata['usd'] != null) {
+      return '-\$${(metadata['usd'] as num).abs().toStringAsFixed(2)}';
+    }
     final v = amount.abs();
     return asset == 'NGN'
         ? '$sign${formatMoney(v, symbol: '₦')}'
@@ -223,4 +229,52 @@ String friendlyDate(DateTime d) {
   if (DateUtils.isSameDay(d, now.subtract(const Duration(days: 1)))) return 'Yesterday, $t';
   const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return '${d.day} ${m[d.month - 1]}, $t';
+}
+
+
+class SavingsPlan {
+  SavingsPlan(this.m);
+  final Map<String, dynamic> m;
+
+  String get id => m['id'];
+  String get kind => m['kind'];
+  String get name => m['name'];
+  String? get icon => m['icon'];
+  double get balance => asDouble(m['balance']);
+  double get principal => asDouble(m['principal']);
+  double get interestEarned => asDouble(m['interest_earned']);
+  double get rate => asDouble(m['interest_rate']);
+  double? get target => m['target_amount'] == null ? null : asDouble(m['target_amount']);
+  DateTime? get lockedUntil => m['locked_until'] == null ? null : DateTime.parse(m['locked_until']).toLocal();
+  double? get autoAmount => m['auto_amount'] == null ? null : asDouble(m['auto_amount']);
+  String? get autoFrequency => m['auto_frequency'];
+  String get status => m['status'];
+  bool get active => status == 'active';
+  bool get isLocked => kind == 'fixed' && lockedUntil != null && DateTime.now().isBefore(lockedUntil!);
+  double get progress => target == null || target == 0 ? 0 : (balance / target!).clamp(0, 1);
+
+  String get kindLabel => switch (kind) {
+        'flexible' => 'Flexible',
+        'fixed' => 'Fixed',
+        _ => 'Goal',
+      };
+}
+
+class CardModel {
+  CardModel(this.m);
+  final Map<String, dynamic> m;
+
+  String get id => m['id'];
+  String get label => m['label'];
+  String get brand => m['brand'];
+  String get currency => m['currency'];
+  String get last4 => m['last4'];
+  String get expiry => '${(m['expiry_month'] as num).toString().padLeft(2, '0')}/${(m['expiry_year'] as num).toString().substring(2)}';
+  double get balance => asDouble(m['balance']);
+  String get status => m['status'];
+  bool get frozen => status == 'frozen';
+  double get dailyLimit => asDouble(m['daily_limit']);
+  bool get online => m['online_enabled'] == true;
+  bool get international => m['international_enabled'] == true;
+  String get color => m['color'] ?? 'green';
 }

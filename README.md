@@ -18,7 +18,7 @@ Every push to `main` rebuilds the web app (GitHub Pages) and the Android APK (th
 5. Custodial crypto wallets ✅
 6. Non-custodial wallets ✅
 7. Exchange & crypto/Naira conversion
-8. Savings, cards, spending insights
+8. Savings, cards, spending insights ✅
 9. Admin dashboard
 10. Business, Agent, Developer & AI
 
@@ -48,6 +48,11 @@ Migrations live in `supabase/migrations/`. Key design:
 - Phrase stored with `flutter_secure_storage` on the device only; reveal/sign/remove gated by the NOVA PIN (`check_my_pin`, locks after 5 failures).
 - Networks: Ethereum Sepolia, BNB Testnet, Solana Devnet (send + receive), Bitcoin Testnet (receive).
 - Connect MetaMask / Trust / Phantom etc. through Reown (WalletConnect) as watch-only wallets.
+
+## Savings, cards, insights (Phase 8, Postgres RPCs)
+- Savings: flexible (10%), goal (12%, auto-save), fixed 30/90/180/365 days (14 to 20%). Daily-compounded interest, early break forfeits interest. `pg_cron` runs auto-saves and accrual hourly. Plan balances reconcile to the `savings_pool` system account.
+- Virtual cards (simulated): NGN Verve (spends from wallet) and USD Visa (prefunded, 1% fee). Freeze, limits, online/international toggles, card PIN, PIN-gated reveal, test purchases, delete with refund. Card number/CVV are not selectable by clients.
+- Insights: monthly cash flow, category breakdown, budgets with 80% alerts.
 
 Sandbox test IDs: BVN `22222222222`, NIN `70123456789`.
 

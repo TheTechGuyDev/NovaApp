@@ -6,7 +6,9 @@ import '../../core/data/nova_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
 import '../crypto/asset_screen.dart';
+import '../insights/insights_screen.dart';
 import '../kyc/kyc_screen.dart';
+import '../savings/savings_screen.dart';
 import '../profile/profile_screen.dart';
 import '../money/add_money_screen.dart';
 import '../money/bills_screen.dart';
@@ -29,6 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'Send' => const SendScreen(),
       'Add Money' => const AddMoneyScreen(),
       'Bills' => const BillsScreen(),
+      'Save' => const SavingsScreen(),
+      'Insights' => const InsightsScreen(),
       _ => null,
     };
     if (page == null) {
@@ -101,8 +105,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
                 _BalanceCard(
                   hidden: _hidden,
-                  totalNgn: store.totalNgn,
-                  totalUsd: store.totalUsd,
+                  totalNgn: store.totalNgn + store.totalSaved,
+                  totalUsd: store.totalUsd + store.totalSaved / store.ngnPerUsd,
                   kycLevel: profile.kycLevel,
                   accountNumber: store.virtualAccount?['account_number'],
                   onAccountTap: () => _quick('Add Money'),
@@ -132,6 +136,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 _QuickActions(onTap: _quick),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: _MiniStat(
+                      icon: Icons.savings_rounded,
+                      label: 'Savings',
+                      value: formatMoney(store.totalSaved, symbol: '₦', decimals: 0),
+                      onTap: () => _quick('Save'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _MiniStat(
+                      icon: Icons.pie_chart_rounded,
+                      label: 'Insights',
+                      value: 'This month',
+                      onTap: () => _quick('Insights'),
+                    ),
+                  ),
+                ]),
                 const SizedBox(height: 24),
                 const _SectionHeader(title: 'My Assets'),
                 const SizedBox(height: 10),
@@ -508,6 +532,40 @@ class _TxnRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.icon, required this.label, required this.value, required this.onTap});
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return NovaCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Row(children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+          child: Icon(icon, color: scheme.primary, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+            Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      ]),
     );
   }
 }
