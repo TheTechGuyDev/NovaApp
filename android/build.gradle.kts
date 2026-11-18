@@ -15,6 +15,15 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+// Some wallet plugins (e.g. coinbase_wallet_sdk via Reown) still declare compileSdk 31,
+// but their AndroidX dependencies need 34+. Raise every library module to 36.
+subprojects {
+    afterEvaluate {
+        extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)?.apply {
+            if ((compileSdk ?: 0) < 36) compileSdk = 36
+        }
+    }
+}
 subprojects {
     project.evaluationDependsOn(":app")
 }
