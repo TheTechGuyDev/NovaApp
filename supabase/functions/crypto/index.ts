@@ -1,7 +1,7 @@
 // NOVA custodial crypto (testnet): deposit addresses, deposit sync,
 // NOVA-to-NOVA crypto transfers and on-chain withdrawals.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { adminClient, corsHeaders, getUser, isSandbox, json } from "../_shared/common.ts";
+import { adminClient, corsHeaders, getUser, isSandbox, json, loadConfig, switchOn } from "../_shared/common.ts";
 import { AppError, guardOutflow, notify, postJournal, walletOf } from "../_shared/ledger.ts";
 import { hotKey, tatum, userAddress, V3, validAddress } from "../_shared/custody.ts";
 
@@ -227,6 +227,7 @@ async function broadcast(db: SupabaseClient, net: any, to: string, amount: numbe
 }
 
 async function withdraw(db: SupabaseClient, userId: string, p: Params) {
+  if (await switchOn("withdrawals_paused")) throw new AppError("Crypto withdrawals are temporarily paused", 503);
   const { data: net } = await db.from("networks").select("*").eq("id", p.network_id).single();
   if (!net || !net.withdrawals_enabled) throw new AppError("Withdrawals are paused on this network");
   const to = String(p.address ?? "").trim();
@@ -333,6 +334,7 @@ async function testFaucet(db: SupabaseClient, userId: string, p: Params) {
 
 // ----------------------------------------------------------------- router
 Deno.serve(async (req) => {
+  await loadConfig();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const user = await getUser(req);
   if (!user) return json({ error: "Unauthorized" }, 401);

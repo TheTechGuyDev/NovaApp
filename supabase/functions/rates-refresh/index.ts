@@ -1,6 +1,6 @@
 // Refreshes the `rates` table every minute (called by pg_cron via pg_net).
 // Source: CoinGecko public API (no key). Fallback: Tatum rate API.
-import { adminClient, json } from "../_shared/common.ts";
+import { adminClient, json, env, loadConfig } from "../_shared/common.ts";
 
 const IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", USDT: "tether", USDC: "usd-coin", SOL: "solana", BNB: "binancecoin",
@@ -9,7 +9,8 @@ const IDS: Record<string, string> = {
 async function fromCoinGecko() {
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${Object.values(IDS).join(",")}` +
     `&vs_currencies=usd,ngn&include_24hr_change=true`;
-  const r = await fetch(url, { headers: { accept: "application/json" } });
+  const key = env("COINGECKO_API_KEY");
+  const r = await fetch(url, { headers: { accept: "application/json", ...(key ? { "x-cg-demo-api-key": key } : {}) } });
   if (!r.ok) throw new Error(`coingecko ${r.status}`);
   const d = await r.json();
   return Object.entries(IDS).map(([code, id]) => ({
@@ -21,7 +22,7 @@ async function fromCoinGecko() {
 }
 
 async function fromTatum() {
-  const key = Deno.env.get("TATUM_API_KEY")!;
+  const key = env("TATUM_API_KEY");
   const rows = [];
   for (const code of Object.keys(IDS)) {
     const [u, n] = await Promise.all(["USD", "NGN"].map((b) =>
@@ -34,6 +35,7 @@ async function fromTatum() {
 }
 
 Deno.serve(async (req) => {
+  await loadConfig();
   if (req.headers.get("x-cron-secret") !== Deno.env.get("CRON_SECRET")) return json({ error: "Forbidden" }, 403);
   const db = adminClient();
   let rows: any[] = [];

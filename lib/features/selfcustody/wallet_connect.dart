@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:reown_appkit/reown_appkit.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config.dart';
 
@@ -12,9 +13,17 @@ class WalletConnectService {
   ReownAppKitModal? _modal;
 
   Future<({String? evm, String? sol, String? walletName})?> connect(BuildContext context) async {
+    // Project ID is managed on the admin Integrations page; falls back to the built-in one.
+    var projectId = AppConfig.reownProjectId;
+    try {
+      final cfg = await Supabase.instance.client.rpc('public_config') as Map;
+      final id = cfg['reown_project_id'] as String?;
+      if (id != null && id.isNotEmpty) projectId = id;
+    } catch (_) {}
+    if (!context.mounted) return null;
     final modal = ReownAppKitModal(
       context: context,
-      projectId: AppConfig.reownProjectId,
+      projectId: projectId,
       metadata: const PairingMetadata(
         name: 'NOVA Finance',
         description: 'Your Money. Your Crypto. Your World.',

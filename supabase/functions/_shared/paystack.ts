@@ -1,10 +1,11 @@
+import { env } from "./common.ts";
 const BASE = "https://api.paystack.co";
 
 export async function paystack(path: string, init: { method?: string; body?: unknown } = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method: init.method ?? "GET",
     headers: {
-      Authorization: `Bearer ${Deno.env.get("PAYSTACK_SECRET_KEY")}`,
+      Authorization: `Bearer ${env("PAYSTACK_SECRET_KEY")}`,
       "Content-Type": "application/json",
     },
     body: init.body ? JSON.stringify(init.body) : undefined,
@@ -17,7 +18,7 @@ export async function verifySignature(raw: string, signature: string | null) {
   if (!signature) return false;
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(Deno.env.get("PAYSTACK_SECRET_KEY")!),
+    new TextEncoder().encode(env("PAYSTACK_SECRET_KEY")),
     { name: "HMAC", hash: "SHA-512" },
     false,
     ["sign"],

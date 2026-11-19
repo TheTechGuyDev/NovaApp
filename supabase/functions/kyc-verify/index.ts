@@ -1,14 +1,14 @@
 // KYC verification via Dojah (BVN -> Level 1, NIN -> Level 2).
 // POST { "type": "bvn" | "nin", "value": "11 digits" }
-import { adminClient, corsHeaders, getUser, isSandbox, json } from "../_shared/common.ts";
+import { adminClient, corsHeaders, getUser, isSandbox, json, env, loadConfig } from "../_shared/common.ts";
 
-const BASE = Deno.env.get("DOJAH_BASE_URL") ?? "https://sandbox.dojah.io";
 
 async function dojah(path: string) {
-  const res = await fetch(`${BASE}${path}`, {
+  const base = env("DOJAH_BASE_URL") || (isSandbox() ? "https://sandbox.dojah.io" : "https://api.dojah.io");
+  const res = await fetch(`${base}${path}`, {
     headers: {
-      AppId: Deno.env.get("DOJAH_APP_ID")!,
-      Authorization: Deno.env.get("DOJAH_SECRET_KEY")!,
+      AppId: env("DOJAH_APP_ID"),
+      Authorization: env("DOJAH_SECRET_KEY"),
     },
   });
   const body = await res.json().catch(() => ({}));
@@ -23,6 +23,7 @@ function namesMatch(profileName: string, first?: string, last?: string) {
 }
 
 Deno.serve(async (req) => {
+  await loadConfig();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 

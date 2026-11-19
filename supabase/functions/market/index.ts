@@ -1,5 +1,5 @@
 // Price history for charts, cached in Postgres so CoinGecko's free limit is never hit.
-import { adminClient, corsHeaders, getUser, json } from "../_shared/common.ts";
+import { adminClient, corsHeaders, getUser, json, loadConfig, env } from "../_shared/common.ts";
 
 const IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", USDT: "tether", USDC: "usd-coin", SOL: "solana", BNB: "binancecoin",
@@ -7,6 +7,7 @@ const IDS: Record<string, string> = {
 const TTL: Record<string, number> = { "1": 5, "7": 30, "30": 120, "365": 720 }; // minutes
 
 Deno.serve(async (req) => {
+  await loadConfig();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (!(await getUser(req))) return json({ error: "Unauthorized" }, 401);
   const { asset, days = "7" } = await req.json().catch(() => ({}));
@@ -19,7 +20,9 @@ Deno.serve(async (req) => {
   const fresh = cached && Date.now() - new Date(cached.fetched_at).getTime() < TTL[String(days)] * 60_000;
   if (fresh) return json({ points: cached.points, cached: true });
 
-  const r = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=ngn&days=${days}`);
+  const cgKey = env("COINGECKO_API_KEY");
+  const r = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=ngn&days=${days}`,
+    { headers: cgKey ? { "x-cg-demo-api-key": cgKey } : {} });
   if (!r.ok) {
     if (cached) return json({ points: cached.points, cached: true, stale: true });
     return json({ error: "Price history unavailable, try again shortly" }, 502);

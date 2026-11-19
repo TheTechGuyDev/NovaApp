@@ -19,7 +19,7 @@ Every push to `main` rebuilds the web app (GitHub Pages) and the Android APK (th
 6. Non-custodial wallets ✅
 7. Exchange & crypto/Naira conversion ✅
 8. Savings, cards, spending insights ✅
-9. Admin dashboard
+9. Admin dashboard ✅
 10. Business, Agent, Developer & AI
 
 > Prototype only: all money movement runs in sandbox/testnet mode.
@@ -54,6 +54,17 @@ Migrations live in `supabase/migrations/`. Key design:
 - Instant swap between any two assets (incl. Naira): `exchange_quote` locks a price for 30s, `exchange_execute` settles atomically (PIN, KYC trade cap, idempotent).
 - Limit orders: funds held in `order_escrow`, filled automatically after each price refresh (`exchange_match_limits`), cancel refunds in full. Aggregated order book via `exchange_depth`.
 - NOVA is the liquidity provider in the sandbox (`liquidity` system account).
+
+## Admin dashboard (Phase 9)
+- URL: https://thetechguydev.github.io/NovaApp/admin/ (staff accounts only, responsive for phone and desktop).
+- Sections: Overview (KPIs, emergency pause for withdrawals/trading), Users (freeze, KYC level, staff roles), Transactions, Crypto Ops (hot wallets, network switches, fees), Exchange (rates, pairs, fees, orders), Finance (reconciliation, system accounts), Settings (fees, limits, savings rates), Integrations, Audit Log.
+- Every admin action is a role-checked `SECURITY DEFINER` function and is written to `audit_logs`.
+
+### Integrations & key security
+- API keys are stored encrypted in **Supabase Vault** and set from the Integrations page. They are **write-only**: no client (including admins) can read them back; the page only shows a short mask.
+- Edge Functions load keys via `get_runtime_config()` (service role only), falling back to deployment secrets. Changes apply within 30 seconds.
+- Sandbox/Live switch (requires typing `GO LIVE`). Kill switches are read fresh on every withdrawal.
+- The app only ships the public Supabase anon key; every table is protected by Row Level Security.
 
 ## Brand
 Logo source: `assets/brand/*.svg` (white "N" with a nova star on NOVA green). Launcher icons, splash and favicon are generated with `flutter_launcher_icons` and `flutter_native_splash`.

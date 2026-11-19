@@ -1,10 +1,11 @@
 // Paystack webhook: credits wallets for checkout payments and
 // transfers into dedicated virtual accounts. Signature-verified.
-import { adminClient, json } from "../_shared/common.ts";
+import { adminClient, json, loadConfig } from "../_shared/common.ts";
 import { notify, postJournal, walletOf } from "../_shared/ledger.ts";
 import { verifySignature } from "../_shared/paystack.ts";
 
 Deno.serve(async (req) => {
+  await loadConfig();
   const raw = await req.text();
   if (!(await verifySignature(raw, req.headers.get("x-paystack-signature")))) {
     return json({ error: "Invalid signature" }, 401);

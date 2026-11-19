@@ -1,3 +1,4 @@
+import { env } from "./common.ts";
 // Custody helpers: AES-GCM encryption of seeds and Tatum (testnet) calls.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { AppError } from "./ledger.ts";
@@ -7,7 +8,7 @@ const TATUM = "https://api.tatum.io";
 export async function tatum(path: string, init: { method?: string; body?: unknown } = {}) {
   const res = await fetch(`${TATUM}${path}`, {
     method: init.method ?? "GET",
-    headers: { "x-api-key": Deno.env.get("TATUM_API_KEY")!, "Content-Type": "application/json" },
+    headers: { "x-api-key": env("TATUM_API_KEY"), "Content-Type": "application/json" },
     body: init.body ? JSON.stringify(init.body) : undefined,
   });
   const text = await res.text();

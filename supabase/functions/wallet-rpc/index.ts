@@ -1,7 +1,7 @@
 // Read-only + broadcast JSON-RPC proxy for NON-custodial wallets.
 // Keys never reach the server: the app signs on-device and only sends
 // public addresses or already-signed transactions through here.
-import { corsHeaders, getUser, json } from "../_shared/common.ts";
+import { corsHeaders, getUser, json, env, loadConfig } from "../_shared/common.ts";
 
 const GATEWAYS: Record<string, string> = {
   "ethereum-sepolia": "https://ethereum-sepolia.gateway.tatum.io",
@@ -21,11 +21,12 @@ const ALLOWED = new Set([
 ]);
 
 async function btc(path: string) {
-  const r = await fetch(`https://api.tatum.io${path}`, { headers: { "x-api-key": Deno.env.get("TATUM_API_KEY")! } });
+  const r = await fetch(`https://api.tatum.io${path}`, { headers: { "x-api-key": env("TATUM_API_KEY") } });
   return { status: r.status, body: await r.json().catch(() => ({})) };
 }
 
 Deno.serve(async (req) => {
+  await loadConfig();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (!(await getUser(req))) return json({ error: "Unauthorized" }, 401);
 
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
   }
   const r = await fetch(gw, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": Deno.env.get("TATUM_API_KEY")! },
+    headers: { "Content-Type": "application/json", "x-api-key": env("TATUM_API_KEY") },
     body: JSON.stringify(body),
   });
   return new Response(await r.text(), {

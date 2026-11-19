@@ -1,7 +1,7 @@
 // NOVA Naira banking: funding, virtual accounts, transfers and bills.
 // POST { action: "...", ...params } with the user's JWT.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { adminClient, corsHeaders, getUser, isSandbox, json } from "../_shared/common.ts";
+import { adminClient, corsHeaders, getUser, isSandbox, json, loadConfig, switchOn } from "../_shared/common.ts";
 import {
   AppError, bankTransferFee, guardOutflow, notify, postJournal, walletOf,
 } from "../_shared/ledger.ts";
@@ -195,6 +195,7 @@ async function resolveAccount(p: Params) {
 }
 
 async function sendToBank(db: SupabaseClient, userId: string, p: Params) {
+  if (await switchOn("withdrawals_paused")) throw new AppError("Bank transfers are temporarily paused", 503);
   const amount = amountOf(p, 100);
   const fee = bankTransferFee(amount);
   const { bank_code, bank_name, account_number, account_name } = p;
@@ -295,6 +296,7 @@ async function payBill(db: SupabaseClient, userId: string, p: Params) {
 
 // ----------------------------------------------------------------- router
 Deno.serve(async (req) => {
+  await loadConfig();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const user = await getUser(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
