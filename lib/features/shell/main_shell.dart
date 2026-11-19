@@ -31,7 +31,7 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final pages = [
       HomeScreen(onOpenExchange: () => _go(2)),
-      const MarketsScreen(),
+      MarketsScreen(onOpenExchange: () => _go(2)),
       const ExchangeScreen(),
       const CardsScreen(),
       const Web3HomeScreen(),

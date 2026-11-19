@@ -8,7 +8,8 @@ import '../../core/widgets/nova_widgets.dart';
 import '../crypto/asset_screen.dart';
 
 class MarketsScreen extends StatelessWidget {
-  const MarketsScreen({super.key});
+  const MarketsScreen({super.key, this.onOpenExchange});
+  final VoidCallback? onOpenExchange;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +38,7 @@ class MarketsScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: NovaCard(
                 onTap: () => Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (_) => AssetScreen(symbol: a.symbol))),
+                    .push(MaterialPageRoute(builder: (_) => AssetScreen(symbol: a.symbol, onOpenExchange: onOpenExchange))),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 child: Row(
                   children: [

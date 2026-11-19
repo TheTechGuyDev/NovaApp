@@ -47,16 +47,9 @@ class OnboardingScreen extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: const LinearGradient(
-                            colors: [AppColors.neon, AppColors.primaryDeep],
-                          ),
-                        ),
-                        child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset('assets/brand/nova_icon.png', width: 36, height: 36),
                       ),
                       const SizedBox(width: 10),
                       Text('NOVA',

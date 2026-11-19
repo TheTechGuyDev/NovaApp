@@ -138,6 +138,16 @@ class NovaStore extends ChangeNotifier {
           },
         )
         .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orders',
+          filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'user_id', value: uid),
+          callback: (_) async {
+            await Future.wait([loadOrders(), _loadWallets()]);
+            notifyListeners();
+          },
+        )
+        .onPostgresChanges(
           event: PostgresChangeEvent.update,
           schema: 'public',
           table: 'rates',
@@ -289,6 +299,32 @@ class NovaStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------- Exchange ----------
+
+  List<Map<String, dynamic>> pairs = [];
+  List<Map<String, dynamic>> orders = [];
+
+  Future<void> loadPairs() async {
+    if (pairs.isNotEmpty) return;
+    final r = await sb.from('trading_pairs').select().eq('enabled', true).order('symbol');
+    pairs = List<Map<String, dynamic>>.from(r as List);
+    notifyListeners();
+  }
+
+  Future<void> loadOrders() async {
+    final r = await sb.from('orders').select().order('created_at', ascending: false).limit(50);
+    orders = List<Map<String, dynamic>>.from(r as List);
+    notifyListeners();
+  }
+
+  /// Price history for charts: list of (time, NGN price).
+  Future<List<(DateTime, double)>> priceHistory(String asset, String days) async {
+    final r = await _invoke('market', '', {'asset': asset, 'days': days});
+    return (r['points'] as List)
+        .map((p) => (DateTime.fromMillisecondsSinceEpoch((p[0] as num).toInt()), (p[1] as num).toDouble()))
+        .toList();
+  }
+
   Future<void> refreshMoney() async {
     await Future.wait([_loadWallets(), loadTransactions()]);
     notifyListeners();
@@ -299,6 +335,7 @@ class NovaStore extends ChangeNotifier {
     depositAddresses = [];
     savings = [];
     cards = [];
+    orders = [];
     await _channel?.unsubscribe();
     _channel = null;
     profile = null;

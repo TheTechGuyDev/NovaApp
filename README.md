@@ -17,7 +17,7 @@ Every push to `main` rebuilds the web app (GitHub Pages) and the Android APK (th
 4. Naira wallet, transfers, bills ✅
 5. Custodial crypto wallets ✅
 6. Non-custodial wallets ✅
-7. Exchange & crypto/Naira conversion
+7. Exchange & crypto/Naira conversion ✅
 8. Savings, cards, spending insights ✅
 9. Admin dashboard
 10. Business, Agent, Developer & AI
@@ -48,6 +48,15 @@ Migrations live in `supabase/migrations/`. Key design:
 - Phrase stored with `flutter_secure_storage` on the device only; reveal/sign/remove gated by the NOVA PIN (`check_my_pin`, locks after 5 failures).
 - Networks: Ethereum Sepolia, BNB Testnet, Solana Devnet (send + receive), Bitcoin Testnet (receive).
 - Connect MetaMask / Trust / Phantom etc. through Reown (WalletConnect) as watch-only wallets.
+
+## Exchange (Phase 7)
+- Live prices: `rates-refresh` runs every minute (pg_cron + pg_net), CoinGecko public API with Tatum as fallback. Charts via `market` (cached in `price_history_cache`).
+- Instant swap between any two assets (incl. Naira): `exchange_quote` locks a price for 30s, `exchange_execute` settles atomically (PIN, KYC trade cap, idempotent).
+- Limit orders: funds held in `order_escrow`, filled automatically after each price refresh (`exchange_match_limits`), cancel refunds in full. Aggregated order book via `exchange_depth`.
+- NOVA is the liquidity provider in the sandbox (`liquidity` system account).
+
+## Brand
+Logo source: `assets/brand/*.svg` (white "N" with a nova star on NOVA green). Launcher icons, splash and favicon are generated with `flutter_launcher_icons` and `flutter_native_splash`.
 
 ## Savings, cards, insights (Phase 8, Postgres RPCs)
 - Savings: flexible (10%), goal (12%, auto-save), fixed 30/90/180/365 days (14 to 20%). Daily-compounded interest, early break forfeits interest. `pg_cron` runs auto-saves and accrual hourly. Plan balances reconcile to the `savings_pool` system account.

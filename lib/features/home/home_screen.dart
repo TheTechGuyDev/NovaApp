@@ -6,6 +6,7 @@ import '../../core/data/nova_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/nova_widgets.dart';
 import '../crypto/asset_screen.dart';
+import '../exchange/exchange_screen.dart';
 import '../insights/insights_screen.dart';
 import '../kyc/kyc_screen.dart';
 import '../savings/savings_screen.dart';
@@ -120,7 +121,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         title: 'Buy',
                         subtitle: 'Use Naira or wallet',
                         icon: Icons.add_rounded,
-                        onTap: widget.onOpenExchange,
+                        onTap: () {
+                          exchangePreset.value = ('NGN', 'USDT');
+                          widget.onOpenExchange();
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -129,7 +133,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         title: 'Sell',
                         subtitle: 'Convert crypto to cash',
                         icon: Icons.currency_exchange_rounded,
-                        onTap: widget.onOpenExchange,
+                        onTap: () {
+                          exchangePreset.value = ('USDT', 'NGN');
+                          widget.onOpenExchange();
+                        },
                       ),
                     ),
                   ],

@@ -9,6 +9,8 @@ import '../../core/widgets/nova_widgets.dart';
 import '../money/add_money_screen.dart';
 import '../money/money_widgets.dart';
 import '../money/send_screen.dart';
+import '../exchange/exchange_screen.dart';
+import 'price_chart.dart';
 import 'receive_crypto_screen.dart';
 import 'send_crypto_screen.dart';
 
@@ -53,7 +55,8 @@ class AssetScreen extends StatelessWidget {
         (Icons.north_east_rounded, 'Send', () => _go(context, SendCryptoScreen(symbol: symbol))),
       ],
       if (onOpenExchange != null)
-        (Icons.swap_horiz_rounded, 'Swap', () {
+        (Icons.swap_horiz_rounded, h.isFiat ? 'Buy crypto' : 'Swap', () {
+          exchangePreset.value = h.isFiat ? ('NGN', 'USDT') : (symbol, 'NGN');
           Navigator.pop(context);
           onOpenExchange!();
         }),
@@ -98,6 +101,10 @@ class AssetScreen extends StatelessWidget {
                 ],
               ),
             ),
+            if (!h.isFiat) ...[
+              const SizedBox(height: 14),
+              PriceChart(symbol: symbol),
+            ],
             const SizedBox(height: 14),
             Row(
               children: actions
