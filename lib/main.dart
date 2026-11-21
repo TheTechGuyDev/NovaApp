@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/config.dart';
 import 'core/data/nova_store.dart';
+import 'core/security/device_guard.dart';
+import 'core/security/secure_session_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/auth_gate.dart';
@@ -15,6 +18,14 @@ Future<void> main() async {
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
+    // Mobile: session lives in the secure keystore. Web: browser storage.
+    authOptions: kIsWeb
+        ? const FlutterAuthClientOptions()
+        : FlutterAuthClientOptions(
+            localStorage: SecureSessionStorage(
+              persistSessionKey: 'sb-${Uri.parse(AppConfig.supabaseUrl).host.split('.').first}-auth-token',
+            ),
+          ),
   );
   final theme = ThemeController();
   await theme.load();
@@ -50,7 +61,7 @@ class NovaApp extends StatelessWidget {
           child: child!,
         );
       },
-      home: const AuthGate(),
+      home: const DeviceGuard(child: AuthGate()),
     );
   }
 }

@@ -9,7 +9,14 @@ String authErrorText(Object e) {
     if (m.contains('invalid login')) return 'Incorrect email or password';
     if (m.contains('already registered')) return 'An account with this email already exists';
     if (m.contains('database error')) return 'This phone number is already linked to an account';
+    if (m.contains('password should contain')) return 'Use upper and lower case letters and a number';
+    if (m.contains('rate limit') || m.contains('too many')) return 'Too many attempts. Please wait a few minutes.';
     return e.message;
+  }
+  if (e is FunctionException) {
+    final d = e.details;
+    if (d is Map && d['error'] != null) return d['error'].toString();
+    if (e.status == 429) return 'Too many attempts. Please wait a few minutes.';
   }
   return 'Something went wrong. Check your connection and try again.';
 }
@@ -103,7 +110,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_form.currentState!.validate()) return;
     setState(() => _busy = true);
     try {
-      final phoneFree = await sb.rpc('phone_available', params: {'_phone': _phone.text.trim()});
+      final check = await sb.functions.invoke('auth-check', body: {'phone': _phone.text.trim()});
+      final phoneFree = check.data is Map ? (check.data as Map)['available'] : null;
       if (phoneFree != true) {
         throw const AuthException('This phone number is already linked to an account');
       }
@@ -167,7 +175,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   icon: Icon(_hide ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                   onPressed: () => setState(() => _hide = !_hide),
                 ),
-                validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+                validator: (v) {
+                  final p = v ?? '';
+                  if (p.length < 8) return 'At least 8 characters';
+                  if (!RegExp(r'[a-z]').hasMatch(p) || !RegExp(r'[A-Z]').hasMatch(p) || !RegExp(r'\d').hasMatch(p)) {
+                    return 'Use upper and lower case letters and a number';
+                  }
+                  return null;
+                },
               ),
             ],
           ),

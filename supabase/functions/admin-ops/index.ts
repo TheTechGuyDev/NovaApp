@@ -1,6 +1,6 @@
 // Admin operations that need server-side network access.
 // Staff role is checked on every call. No secret value is ever returned.
-import { adminClient, corsHeaders, env, getUser, isSandbox, json, loadConfig } from "../_shared/common.ts";
+import { adminClient, corsHeaders, env, getUser, guardRate, isSandbox, json, loadConfig } from "../_shared/common.ts";
 import { tatum } from "../_shared/custody.ts";
 
 const KEYS = [
@@ -96,6 +96,8 @@ Deno.serve(async (req) => {
   await loadConfig(true);
   const user = await getUser(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
+  const limited = await guardRate(req, "admin-ops", user.id, 30);
+  if (limited) return limited;
   const have = await roles(user.id);
   const { action, provider } = await req.json().catch(() => ({}));
 

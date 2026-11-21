@@ -1,9 +1,9 @@
 // NOVA Naira banking: funding, virtual accounts, transfers and bills.
 // POST { action: "...", ...params } with the user's JWT.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { adminClient, corsHeaders, getUser, isSandbox, json, loadConfig, switchOn } from "../_shared/common.ts";
+import { adminClient, allow, corsHeaders, getUser, guardRate, isSandbox, json, loadConfig, switchOn, tooMany } from "../_shared/common.ts";
 import {
-  AppError, bankTransferFee, guardOutflow, notify, postJournal, walletOf,
+  AppError, bankTransferFee, commitHolds, guardOutflow, notify, releaseHolds, postJournal, walletOf,
 } from "../_shared/ledger.ts";
 import { paystack } from "../_shared/paystack.ts";
 
@@ -162,7 +162,8 @@ async function sendToNova(db: SupabaseClient, userId: string, p: Params) {
     { wallet_id: to.id, asset: "NGN", amount },
   ]);
   const { data: existing } = await db.from("transactions").select("reference").eq("journal_id", journal).limit(1);
-  if (existing?.length) return { reference: existing[0].reference, status: "completed" };
+  if (existing?.length) { await releaseHolds(db); return { reference: existing[0].reference, status: "completed" }; }
+  commitHolds(db);
 
   const note = (p.note ?? "").toString().slice(0, 80) || null;
   const { data: out } = await db.from("transactions").insert({
@@ -212,7 +213,8 @@ async function sendToBank(db: SupabaseClient, userId: string, p: Params) {
     { system: "fees", asset: "NGN", amount: fee },
   ]);
   const { data: existing } = await db.from("transactions").select("reference, status").eq("journal_id", journal).limit(1);
-  if (existing?.length) return existing[0];
+  if (existing?.length) { await releaseHolds(db); return existing[0]; }
+  commitHolds(db);
 
   const { data: txn } = await db.from("transactions").insert({
     user_id: userId, journal_id: journal, type: "transfer_out", status: "processing",
@@ -277,7 +279,8 @@ async function payBill(db: SupabaseClient, userId: string, p: Params) {
     { system: "bills_settlement", asset: "NGN", amount },
   ]);
   const { data: existing } = await db.from("transactions").select("reference, status").eq("journal_id", journal).limit(1);
-  if (existing?.length) return existing[0];
+  if (existing?.length) { await releaseHolds(db); return existing[0]; }
+  commitHolds(db);
 
   const token = category === "electricity"
     ? Array.from({ length: 5 }, () => String(Math.floor(1000 + Math.random() * 9000))).join("-")
@@ -300,7 +303,15 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const user = await getUser(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
+  const limited = await guardRate(req, "banking", user.id, 40);
+  if (limited) return limited;
   const p: Params = await req.json().catch(() => ({}));
+  if (["send_nova", "send_bank", "pay_bill"].includes(p.action) && !(await allow(`money:${user.id}`, 10, 60))) {
+    return tooMany("Too many payments in a short time. Wait a minute and try again.");
+  }
+  if (p.action === "fund_test" && !(await allow(`fundtest:${user.id}`, 5, 3600))) {
+    return tooMany("Test top-up limit reached. Try again in an hour.");
+  }
   const db = adminClient();
   try {
     switch (p.action) {
@@ -316,6 +327,7 @@ Deno.serve(async (req) => {
       default: return json({ error: "Unknown action" }, 400);
     }
   } catch (e) {
+    await releaseHolds(db).catch(() => {});
     const err = e instanceof AppError ? e : new AppError(String((e as Error)?.message ?? e), 500);
     console.error(p.action, err.message);
     return json({ error: err.message }, err.status);

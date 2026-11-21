@@ -76,3 +76,50 @@ export async function switchOn(key: "withdrawals_paused" | "trading_paused"): Pr
   const { data } = await adminClient().from("app_settings").select("value").eq("key", key).maybeSingle();
   return data?.value === true;
 }
+
+// ---------------------------------------------------------------------------
+// Abuse protection
+
+/** Caller IP (first hop). */
+export function clientIp(req: Request): string {
+  return (req.headers.get("x-forwarded-for") ?? req.headers.get("cf-connecting-ip") ?? "")
+    .split(",")[0].trim() || "unknown";
+}
+
+/** Fixed-window limiter shared across all function instances. True = allowed. */
+export async function allow(key: string, max: number, windowSeconds: number): Promise<boolean> {
+  const { data, error } = await adminClient().rpc("hit_rate_limit", {
+    _key: key, _max: max, _window_seconds: windowSeconds,
+  });
+  if (error) { console.error("rate limit", error.message); return true; } // fail open, never block on our own error
+  return data === true;
+}
+
+export function tooMany(message = "Too many requests. Please slow down and try again shortly.") {
+  return new Response(JSON.stringify({ error: message }), {
+    status: 429,
+    headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "30" },
+  });
+}
+
+export async function securityEvent(
+  kind: string, severity: "low" | "medium" | "high" | "critical",
+  userId: string | null, ip: string | null, details: Record<string, unknown> = {},
+) {
+  await adminClient().rpc("log_security_event", {
+    _kind: kind, _severity: severity, _user: userId, _ip: ip, _details: details,
+  });
+}
+
+/** Per-user + per-IP request limit for a function. Returns a 429 response or null. */
+export async function guardRate(req: Request, fn: string, userId: string | null, perMinute = 60) {
+  const ip = clientIp(req);
+  const okIp = await allow(`ip:${fn}:${ip}`, perMinute * 3, 60);
+  const okUser = userId ? await allow(`user:${fn}:${userId}`, perMinute, 60) : true;
+  if (okIp && okUser) return null;
+  // Log once per 5 minutes per caller so the event log isn't flooded.
+  if (await allow(`logged:${fn}:${userId ?? ip}`, 1, 300)) {
+    await securityEvent("rate_limited", "medium", userId, ip, { fn });
+  }
+  return tooMany();
+}

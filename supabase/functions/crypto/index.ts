@@ -1,8 +1,8 @@
 // NOVA custodial crypto (testnet): deposit addresses, deposit sync,
 // NOVA-to-NOVA crypto transfers and on-chain withdrawals.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { adminClient, corsHeaders, getUser, isSandbox, json, loadConfig, switchOn } from "../_shared/common.ts";
-import { AppError, guardOutflow, notify, postJournal, walletOf } from "../_shared/ledger.ts";
+import { adminClient, allow, corsHeaders, getUser, guardRate, isSandbox, json, loadConfig, switchOn, tooMany } from "../_shared/common.ts";
+import { AppError, commitHolds, guardOutflow, notify, releaseHolds, postJournal, walletOf } from "../_shared/ledger.ts";
 import { hotKey, tatum, userAddress, V3, validAddress } from "../_shared/custody.ts";
 
 type Params = Record<string, any>;
@@ -172,7 +172,8 @@ async function sendInternal(db: SupabaseClient, userId: string, p: Params) {
       { wallet_id: to.id, asset, amount },
     ]);
   const { data: existing } = await db.from("transactions").select("reference").eq("journal_id", journal).limit(1);
-  if (existing?.length) return { reference: existing[0].reference, status: "completed" };
+  if (existing?.length) { await releaseHolds(db); return { reference: existing[0].reference, status: "completed" }; }
+  commitHolds(db);
 
   const { data: out } = await db.from("transactions").insert({
     user_id: userId, journal_id: journal, type: "transfer_out", status: "completed", asset_code: asset,
@@ -256,7 +257,8 @@ async function withdraw(db: SupabaseClient, userId: string, p: Params) {
       { wallet_id: dest.id, asset: net.asset_code, amount },
     ]);
     const { data: existing } = await db.from("transactions").select("reference").eq("journal_id", journal).limit(1);
-    if (existing?.length) return { reference: existing[0].reference, status: "completed", internal: true };
+    if (existing?.length) { await releaseHolds(db); return { reference: existing[0].reference, status: "completed", internal: true }; }
+    commitHolds(db);
     const { data: out } = await db.from("transactions").insert({
       user_id: userId, journal_id: journal, type: "withdrawal", status: "completed", asset_code: net.asset_code,
       amount: -amount, title: `${net.asset_code} sent`, network_id: net.id,
@@ -276,7 +278,8 @@ async function withdraw(db: SupabaseClient, userId: string, p: Params) {
     { system: "fees", asset: net.asset_code, amount: fee },
   ]);
   const { data: existing } = await db.from("transactions").select("reference, status, tx_hash").eq("journal_id", journal).limit(1);
-  if (existing?.length) return existing[0];
+  if (existing?.length) { await releaseHolds(db); return existing[0]; }
+  commitHolds(db);
 
   const { data: txn } = await db.from("transactions").insert({
     user_id: userId, journal_id: journal, type: "withdrawal", status: "processing", asset_code: net.asset_code,
@@ -338,7 +341,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const user = await getUser(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
+  const limited = await guardRate(req, "crypto", user.id, 30);
+  if (limited) return limited;
   const p: Params = await req.json().catch(() => ({}));
+  if (["send_internal", "withdraw"].includes(p.action) && !(await allow(`money:${user.id}`, 10, 60))) {
+    return tooMany("Too many payments in a short time. Wait a minute and try again.");
+  }
   const db = adminClient();
   try {
     switch (p.action) {
@@ -350,6 +358,7 @@ Deno.serve(async (req) => {
       default: return json({ error: "Unknown action" }, 400);
     }
   } catch (e) {
+    await releaseHolds(db).catch(() => {});
     const err = e instanceof AppError ? e : new AppError(String((e as Error)?.message ?? e), 500);
     console.error(p.action, err.message);
     return json({ error: err.message }, err.status);

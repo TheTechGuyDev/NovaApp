@@ -1,5 +1,5 @@
 // Price history for charts, cached in Postgres so CoinGecko's free limit is never hit.
-import { adminClient, corsHeaders, getUser, json, loadConfig, env } from "../_shared/common.ts";
+import { adminClient, corsHeaders, getUser, guardRate, json, loadConfig, env } from "../_shared/common.ts";
 
 const IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", USDT: "tether", USDC: "usd-coin", SOL: "solana", BNB: "binancecoin",
@@ -9,7 +9,10 @@ const TTL: Record<string, number> = { "1": 5, "7": 30, "30": 120, "365": 720 }; 
 Deno.serve(async (req) => {
   await loadConfig();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (!(await getUser(req))) return json({ error: "Unauthorized" }, 401);
+  const user = await getUser(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const limited = await guardRate(req, "market", user.id, 60);
+  if (limited) return limited;
   const { asset, days = "7" } = await req.json().catch(() => ({}));
   const id = IDS[asset];
   if (!id || !TTL[String(days)]) return json({ error: "Unsupported" }, 400);

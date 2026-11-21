@@ -10,6 +10,7 @@ import '../core/widgets/nova_widgets.dart';
 import 'admin_common.dart';
 import 'admin_integrations.dart';
 import 'admin_pages.dart';
+import 'admin_security.dart';
 
 /// Session + staff role check. Non-staff accounts are signed out.
 class AdminGate extends StatefulWidget {
@@ -187,6 +188,7 @@ class _AdminShellState extends State<AdminShell> {
     _Section('Finance', Icons.account_balance_rounded, () => const FinancePage(), const ['finance', 'treasury']),
     _Section('Settings', Icons.tune_rounded, () => const SettingsPage(), const ['finance']),
     _Section('Integrations', Icons.key_rounded, () => const IntegrationsPage(), const ['tech']),
+    _Section('Security', Icons.shield_rounded, () => const SecurityPage(), const ['compliance', 'risk', 'support', 'tech']),
     _Section('Audit Log', Icons.history_rounded, () => const AuditPage(), const ['compliance', 'tech']),
   ];
 

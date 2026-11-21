@@ -1,16 +1,35 @@
-import { env } from "./common.ts";
+import { allow, env } from "./common.ts";
 // Custody helpers: AES-GCM encryption of seeds and Tatum (testnet) calls.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { AppError } from "./ledger.ts";
+import { HDKey } from "npm:@scure/bip32@1.4.0";
+import { mnemonicToSeedSync } from "npm:@scure/bip39@1.3.0";
+import { sha256 } from "npm:@noble/hashes@1.4.0/sha256";
+import { base58check } from "npm:@scure/base@1.1.7";
 
 const TATUM = "https://api.tatum.io";
 
+/**
+ * Tatum call, kept under the plan's requests-per-second limit (shared with
+ * wallet-rpc) and retried on 429 so busy moments slow down instead of failing.
+ */
 export async function tatum(path: string, init: { method?: string; body?: unknown } = {}) {
-  const res = await fetch(`${TATUM}${path}`, {
-    method: init.method ?? "GET",
-    headers: { "x-api-key": env("TATUM_API_KEY"), "Content-Type": "application/json" },
-    body: init.body ? JSON.stringify(init.body) : undefined,
-  });
+  const rps = Number(Deno.env.get("TATUM_RPS") ?? "3");
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (!(await allow("tatum:global", rps, 1))) {
+      await new Promise((r) => setTimeout(r, 300 + attempt * 200));
+      continue;
+    }
+    res = await fetch(`${TATUM}${path}`, {
+      method: init.method ?? "GET",
+      headers: { "x-api-key": env("TATUM_API_KEY"), "Content-Type": "application/json" },
+      body: init.body ? JSON.stringify(init.body) : undefined,
+    });
+    if (res.status !== 429) break;
+    await new Promise((r) => setTimeout(r, 400 + attempt * 300));
+  }
+  if (!res) return { ok: false, status: 429, data: { message: "Crypto network busy, try again shortly" } };
   const text = await res.text();
   let data: any = null;
   try { data = JSON.parse(text); } catch { data = text; }
@@ -89,14 +108,45 @@ export async function userAddress(db: SupabaseClient, userId: string, chain: str
   return { address: w.data.address as string, index: null };
 }
 
-/** Private key of the chain's hot wallet (index 0). */
+// BIP44 account paths Tatum uses for its HD wallets. Testnet wallets use
+// coin type 1; mainnet uses each chain's own coin type.
+const HD_PATHS: Record<string, string[]> = {
+  bitcoin: ["m/44'/1'/0'/0", "m/44'/0'/0'/0"],
+  ethereum: ["m/44'/1'/0'/0", "m/44'/60'/0'/0"],
+  bsc: ["m/44'/1'/0'/0", "m/44'/60'/0'/0"],
+  tron: ["m/44'/195'/0'/0", "m/44'/1'/0'/0"],
+};
+const TPRV = { private: 0x04358394, public: 0x043587cf }; // testnet tprv/tpub
+
+const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+
+/**
+ * Private key of the chain's hot wallet (index 0), derived here in server
+ * memory. The master mnemonic never leaves our server. The derived account
+ * key must match the stored xpub, or we refuse to sign.
+ */
 export async function hotKey(db: SupabaseClient, chain: string) {
   const master = await masterFor(db, chain);
   const secret = await decrypt(master.encrypted_secret);
   if (!HD_CHAINS.includes(chain)) return { address: master.hot_address as string, key: secret };
-  const k = await tatum(`/v3/${V3[chain]}/wallet/priv`, { method: "POST", body: { mnemonic: secret, index: 0 } });
-  if (!k.ok) throw new AppError("Could not unlock hot wallet", 502);
-  return { address: master.hot_address as string, key: k.data.key as string };
+
+  const xpub = master.xpub as string;
+  const root = HDKey.fromMasterSeed(mnemonicToSeedSync(secret), xpub.startsWith("tpub") ? TPRV : undefined);
+  const account = HD_PATHS[chain].map((path) => root.derive(path)).find((k) => k.publicExtendedKey === xpub);
+  if (!account) {
+    throw new AppError("Hot wallet key check failed. Withdrawals are paused for safety.", 500);
+  }
+  const node = account.deriveChild(0);
+  const priv = node.privateKey!;
+  let key: string;
+  if (chain === "bitcoin") {
+    key = base58check(sha256).encode(new Uint8Array([0xef, ...priv, 0x01])); // testnet WIF, compressed
+  } else if (chain === "tron") {
+    key = hex(priv);
+  } else {
+    key = "0x" + hex(priv);
+  }
+  return { address: master.hot_address as string, key };
 }
 
 export function validAddress(chain: string, a: string) {

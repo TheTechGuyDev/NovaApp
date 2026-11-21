@@ -36,30 +36,42 @@ export async function postJournal(
   return data as string;
 }
 
-/** Checks PIN, account status and KYC daily limit before any outflow. */
+// Daily-limit reservations made during the current request (per db client).
+const holds = new WeakMap<SupabaseClient, string[]>();
+
+/**
+ * Checks account status, KYC, PIN (with lockout) and the daily limit, and
+ * reserves the amount in one locked database call, so parallel requests
+ * can't slip past the limit. If the request later fails, call
+ * releaseHolds(db) to give the allowance back.
+ */
 export async function guardOutflow(
   db: SupabaseClient,
   userId: string,
   pin: string,
   amountNgn: number,
+  kind = "outflow",
 ) {
-  const { data: profile } = await db.from("profiles")
-    .select("kyc_level, status").eq("id", userId).single();
-  if (!profile) throw new AppError("Profile not found", 404);
-  if (profile.status !== "active") throw new AppError("Account is restricted", 403);
-  if (profile.kyc_level < 1) throw new AppError("Verify your BVN to send money", 403);
+  const { data, error } = await db.rpc("outflow_reserve", {
+    _user: userId, _pin: String(pin ?? ""), _amount_ngn: Math.round(amountNgn * 100) / 100, _kind: kind,
+  });
+  if (error) throw new AppError(error.message, 500);
+  if (!data?.ok) throw new AppError(data?.error ?? "Not allowed", data?.status ?? 403);
+  holds.set(db, [...(holds.get(db) ?? []), data.id as string]);
+  return { kyc_level: data.kyc_level as number, status: "active" };
+}
 
-  const { data: pinOk } = await db.rpc("verify_transaction_pin", { _user: userId, _pin: String(pin ?? "") });
-  if (pinOk !== true) throw new AppError("Incorrect PIN", 401);
-
-  const { data: spent } = await db.rpc("daily_outflow_ngn", { _user: userId });
-  const limit = KYC_DAILY_LIMIT[profile.kyc_level] ?? 0;
-  if (Number(spent ?? 0) + amountNgn > limit) {
-    throw new AppError(
-      `Daily limit of ₦${limit.toLocaleString()} reached for KYC Level ${profile.kyc_level}`, 403,
-    );
+/** Gives back reservations from a request that failed before money moved. */
+export async function releaseHolds(db: SupabaseClient) {
+  for (const id of holds.get(db) ?? []) {
+    await db.rpc("outflow_release", { _id: id });
   }
-  return profile;
+  holds.delete(db);
+}
+
+/** Call once money has actually moved, so a later error can't release it. */
+export function commitHolds(db: SupabaseClient) {
+  holds.delete(db);
 }
 
 export function bankTransferFee(amount: number) {
